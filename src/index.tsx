@@ -1,4 +1,4 @@
-import { List } from "@raycast/api";
+import { List,ActionPanel, Action } from "@raycast/api";
 import { useEffect, useState } from "react";
 import got from "got";
 
@@ -9,14 +9,12 @@ interface R<T> {
 }
 
 interface TranslateResult {
-  src: string;
-  target: string;
-  alternatives: string[];
-  cost: number;
+  data: string;
+  code: number;
 }
 
 export default function Command() {
-  const [items, setItems] = useState<string[]>();
+  const [item, setItem] = useState<string>();
   const [searchText, setSearchText] = useState("");
   useEffect(() => {
     if (searchText.length == 0) {
@@ -24,11 +22,16 @@ export default function Command() {
     }
 
     async function fetchStories() {
-      console.log("searching for", searchText);
-      const res = await got.get(`https://deepl.leftsite.cn/?q=${searchText}`).json<R<TranslateResult>>();
+      const res = await got.post(`http:/localhost:8888/translate`, {
+        json: {
+            "text": searchText,
+            "source_lang": "auto",
+            "target_lang": "ZH"
+        }
+      }).json<TranslateResult>();
       console.log(res);
-      if (res.code === "success") {
-        setItems([...res.data.alternatives, "耗时: " + res.data.cost / 1000 + " 秒"]);
+      if (res.code === 200) {
+        setItem(res.data);
       }
     }
 
@@ -36,10 +39,14 @@ export default function Command() {
   }, [searchText]);
 
   return (
-    <List isLoading={items === undefined} throttle onSearchTextChange={setSearchText}>
-      {items?.map((item, index) => (
-        <List.Item key={index} title={item} />
-      ))}
+    <List isLoading={item === undefined} throttle isShowingDetail onSearchTextChange={setSearchText}>
+        <List.Item title={searchText} actions={
+          <ActionPanel>
+            <Action.CopyToClipboard content={item || ''} />
+        </ActionPanel>
+        } detail={
+          <List.Item.Detail markdown={item} />
+        } />
     </List>
   );
 }
